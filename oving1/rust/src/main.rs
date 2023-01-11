@@ -1,6 +1,5 @@
 use std::{
     io::{self, Write},
-    process::exit,
     sync::{Arc, Mutex},
     thread,
 };
@@ -27,47 +26,23 @@ fn main() -> io::Result<()> {
 
     let mut buf = String::new();
 
-    print!("From: ");
+    print!("Fra: ");
     stdout.flush().expect("Burde kunnet flushe stdout");
     stdin.read_line(&mut buf)?;
-    let from: usize = match buf.trim().parse() {
-        Ok(from) => {
-            buf.clear();
-            from
-        }
-        Err(_) => {
-            println!("Det der ser ikke ut til å være et positivt heltall");
-            exit(1);
-        }
-    };
+    let from: usize = buf.trim().parse().expect("Det der ser ikke ut som et heltall, altså");
+    buf.clear();
 
-    print!("To: ");
+    print!("Til: ");
     stdout.flush().expect("Burde kunnet flushe stdout");
     stdin.read_line(&mut buf)?;
-    let to: usize = match buf.trim().parse() {
-        Ok(to) => {
-            buf.clear();
-            to
-        }
-        Err(_) => {
-            println!("Det der ser ikke ut til å være et positivt heltall");
-            exit(1);
-        }
-    };
+    let to: usize = buf.trim().parse().expect("Det der ser ikke ut som et heltall, gitt");
+    buf.clear();
 
-    print!("# of threads: ");
+    print!("Antall tråder: ");
     stdout.flush().expect("Burde kunnet flushe stdout");
     stdin.read_line(&mut buf)?;
-    let thread_count: usize = match buf.trim().parse() {
-        Ok(thread_count) => {
-            buf.clear();
-            thread_count
-        }
-        Err(_) => {
-            println!("Det der ser ikke ut til å være et positivt heltall");
-            exit(1);
-        }
-    };
+    let thread_count: usize = buf.trim().parse().expect("Det der ser ikke ut som et heltall, du");
+    buf.clear();
 
     let mut thread = 0;
     let mut pools: Vec<Vec<usize>> = vec![vec![]; thread_count];
