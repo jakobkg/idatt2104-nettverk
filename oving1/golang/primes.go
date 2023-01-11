@@ -83,16 +83,16 @@ func main() {
 	}
 
 	// Opprett en semafor som brukes for å vente til alle bi-trådene er ferdig med arbeidet sitt
-	var waiter sync.WaitGroup
+	var semaphore sync.WaitGroup
 
 	// Kjør alle goroutines (tråder)
 	for _, list := range numbers {
-		waiter.Add(1)
-		go primeRoutine(list, prime_channel, &waiter)
+		semaphore.Add(1)
+		go primeRoutine(list, prime_channel, &semaphore)
 	}
 
 	// Vent til alle sammen er ferdige
-	waiter.Wait()
+	semaphore.Wait()
 
 	// Lukk kanalen de har brukt til å sende primtall
 	close(prime_channel)
