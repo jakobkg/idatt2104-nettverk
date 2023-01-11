@@ -7,7 +7,7 @@ use std::{
 // Finn alle primtall mellom to heltall, med et gitt antall tråder
 
 pub fn check_prime(number: usize) -> bool {
-    if number % 2 == 0 || number < 3 {
+    if (number > 2 && number % 2 == 0) || number < 2 {
         false
     } else {
         for factor in (3..=(number as f64).sqrt() as usize).step_by(2) {

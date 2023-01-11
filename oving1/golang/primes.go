@@ -19,7 +19,7 @@ func primeRoutine(numbers []int, c chan int, g *sync.WaitGroup) {
 }
 
 func checkPrime(number int) bool {
-	if number < 3 || number%2 == 0 {
+	if number < 2 || (number > 2 && number%2 == 0) {
 		return false
 	}
 
