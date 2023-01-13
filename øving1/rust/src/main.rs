@@ -4,6 +4,18 @@ use std::{
     thread,
 };
 
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+struct Args {
+    #[arg(short, long)]
+    from: usize,
+    #[arg(short, long)]
+    to: usize,
+    #[arg(short, long)]
+    n: usize,
+}
+
 // Finn alle primtall mellom to heltall, med et gitt antall tråder
 
 pub fn check_prime(number: usize) -> bool {
@@ -21,41 +33,20 @@ pub fn check_prime(number: usize) -> bool {
 }
 
 fn main() -> io::Result<()> {
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-
-    let mut buf = String::new();
-
-    print!("Fra: ");
-    stdout.flush().expect("Burde kunnet flushe stdout");
-    stdin.read_line(&mut buf)?;
-    let from: usize = buf.trim().parse().expect("Det der ser ikke ut som et heltall, altså");
-    buf.clear();
-
-    print!("Til: ");
-    stdout.flush().expect("Burde kunnet flushe stdout");
-    stdin.read_line(&mut buf)?;
-    let to: usize = buf.trim().parse().expect("Det der ser ikke ut som et heltall, gitt");
-    buf.clear();
-
-    print!("Antall tråder: ");
-    stdout.flush().expect("Burde kunnet flushe stdout");
-    stdin.read_line(&mut buf)?;
-    let thread_count: usize = buf.trim().parse().expect("Det der ser ikke ut som et heltall, du");
-    buf.clear();
+    let args = Args::parse();
 
     let mut thread = 0;
-    let mut pools: Vec<Vec<usize>> = vec![vec![]; thread_count];
+    let mut pools: Vec<Vec<usize>> = vec![vec![]; args.n];
     let mut threads = Vec::new();
     let primes: Arc<Mutex<Vec<usize>>> = Arc::new(Mutex::new(Vec::new()));
 
-    for number in from..=to {
+    for number in args.from..=args.to {
         // Tar bare med oddetall, siden partall ikke kan være primtall (unntatt 2)
         if number % 2 != 0 || number == 2 {
             pools[thread].push(number);
             thread += 1;
 
-            if thread == thread_count {
+            if thread == args.n {
                 thread = 0;
             }
         }
@@ -74,18 +65,16 @@ fn main() -> io::Result<()> {
     }
 
     for thread in threads {
-        _ = thread.join();
+        thread.join().expect("Kunne ikke avslutte tråd som forventet, avbryter");
     }
 
     if let Ok(mut primes) = primes.lock() {
         primes.sort();
+        print!("[ ");
         for prime in primes.iter() {
-            print!("{prime}");
-            if prime != primes.iter().last().unwrap() {
-                print!(", ");
-            }
+            print!("{prime} ");
         }
-        println!();
+        println!("]");
     }
 
     Ok(())

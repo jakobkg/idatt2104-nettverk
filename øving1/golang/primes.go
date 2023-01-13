@@ -19,6 +19,11 @@ func primeRoutine(numbers []int, c chan int, semaphore *sync.WaitGroup) {
 	semaphore.Done()
 }
 
+func channelCloseRoutine(c chan int, semaphore *sync.WaitGroup) {
+	semaphore.Wait()
+	close(c)
+}
+
 func checkPrime(number int) bool {
 	// Hvis et tall er mindre enn 2, eller er et partall større enn 2, er det ikke et primtall
 	if number < 2 || (number > 2 && number%2 == 0) {
@@ -30,7 +35,7 @@ func checkPrime(number int) bool {
 
 	// Sjekk om tallet er delelig på noen av oddetallene fra og med 3 til og med rota
 	for factor := 3; factor <= root; factor += 2 {
-		// Er det delelig såer det ikke et primtall
+		// Er det delelig så er det ikke et primtall
 		if number%factor == 0 {
 			return false
 		}
@@ -59,8 +64,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Enkel validering av inputs
+	if threadcount <= 0 {
+		fmt.Println("Ugyldig antall tråder! Må ha minst en tråd for å kunne kjøre")
+		os.Exit(1)
+	}
+
+	if from > to {
+		fmt.Println("Ugyldige argumenter, \"fra\" må være mindre enn eller lik \"til\"")
+		os.Exit(1)
+	}
+
 	// Opprett kanal for å sende primtall som er funnet fra bi-tråder til hovedtråden
-	prime_channel := make(chan int, to-from)
+	prime_channel := make(chan int)
 
 	// Liste med lister av tall, der hver liste av tall skal sendes til en goroutine for å sjekkes for primtall
 	numbers := [][]int{}
@@ -87,21 +103,18 @@ func main() {
 	// Opprett en semafor som brukes for å vente til alle bi-trådene er ferdig med arbeidet sitt
 	var semaphore sync.WaitGroup
 
-	// Kjør alle goroutines (tråder)
+	// Kjør alle goroutines (tråder) og la semaforen telle antall aktive tråder
+	semaphore.Add(threadcount)
 	for _, list := range numbers {
-		semaphore.Add(1)
 		go primeRoutine(list, prime_channel, &semaphore)
 	}
 
-	// Vent til alle sammen er ferdige
-	semaphore.Wait()
-
-	// Lukk kanalen de har brukt til å sende primtall
-	close(prime_channel)
+	// Start en rutine som følger med på semaforen og lukker primtall-kanalen når alle tråder er ferdige
+	go channelCloseRoutine(prime_channel, &semaphore)
 
 	primes := []int{}
 
-	// Tøm bufferen fra kanalen inn i listen
+	// Følg med på kanalen og putt alle primtall som kommer gjennom den inn i en liste
 	for number := range prime_channel {
 		primes = append(primes, number)
 	}
