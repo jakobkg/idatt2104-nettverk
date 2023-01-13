@@ -71,14 +71,16 @@ func main() {
 
 	thread := 0
 
-	// Fyll inn tall fra og med "from" til og med "to" i ovennevnte lister
-	for i := from; i <= to; i++ {
-		numbers[thread] = append(numbers[thread], i)
+	// Fyll inn tall fra og med "from" til og med "to" number ovennevnte lister
+	for number := from; number <= to; number++ {
+		// Ikke ta med partall (unntatt 2) for videre sjekking
+		if number%2 == 1 || number == 2 {
+			numbers[thread] = append(numbers[thread], number)
+			thread++
 
-		thread++
-
-		if thread == threadcount {
-			thread = 0
+			if thread == threadcount {
+				thread = 0
+			}
 		}
 	}
 

@@ -50,10 +50,14 @@ fn main() -> io::Result<()> {
     let primes: Arc<Mutex<Vec<usize>>> = Arc::new(Mutex::new(Vec::new()));
 
     for number in from..=to {
-        pools[thread].push(number);
-        thread += 1;
-        if thread == thread_count {
-            thread = 0;
+        // Tar bare med oddetall, siden partall ikke kan være primtall (unntatt 2)
+        if number % 2 != 0 || number == 2 {
+            pools[thread].push(number);
+            thread += 1;
+
+            if thread == thread_count {
+                thread = 0;
+            }
         }
     }
 
