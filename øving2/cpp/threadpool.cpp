@@ -1,22 +1,17 @@
 #include "workers.h"
+#include <atomic>
 #include <iostream>
 #include <thread>
-#include <atomic>
 
 int main(int argc, char *argv[]) {
   Workers workers(4);
 
   workers.start();
 
-  std::atomic<int> sum(0);
-
-  for (int i = 0; i < 5; ++i) {
-    workers.post([&sum] { sum.fetch_add(1); });
-  }
+  workers.post_timeout([] { std::cout << "A" << std::endl; }, 2000);
+  workers.post_timeout([] { std::cout << "B" << std::endl; }, 1000);
 
   workers.stop();
-  
-  std::cout << "Summerte " << sum << std::endl;
 
   return 0;
 }
