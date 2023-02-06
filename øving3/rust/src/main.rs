@@ -1,16 +1,16 @@
 mod server;
 
-fn echo(message: String, responsebuf: &mut [u8]) {
-    let response = message + "\n";
+fn echo(request: String, responsebuf: &mut [u8]) {
+    let response = request + "\n";
     for (idx, byte) in response.bytes().enumerate() {
         responsebuf[idx] = byte;
     }
 }
 
-fn beregn(message: String, responsebuf: &mut [u8]) {
+fn beregn(request: String, responsebuf: &mut [u8]) {
     let mut operator: Option<char> = None;
     let mut opcount = 0;
-    let message = message.trim();
+    let message = request.trim();
 
     for symbol in ['+', '-', '*', '/'] {
         if message.contains(symbol) {
@@ -53,13 +53,13 @@ fn beregn(message: String, responsebuf: &mut [u8]) {
     }
 }
 
-fn web(message: String, responsebuf: &mut [u8]) {
+fn web(request: String, responsebuf: &mut [u8]) {
     let mut response = "HTTP/1.0 200 OK\nContent-Type: text/html; charset=utf-8\n\n".to_string();
 
     response += "<html><body><h1>Velkommen til verdens feteste webtjener</h1>";
     response += "<ul>";
 
-    for line in message.lines() {
+    for line in request.lines() {
         response += "<li>";
         response += line;
         response += "</li>";
@@ -74,7 +74,7 @@ fn web(message: String, responsebuf: &mut [u8]) {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server = server::Server::new("localhost".to_string(), 8080, web, false);
+    let server = server::Server::new("localhost".to_string(), 8080, web, false, false);
 
     server.start().await?;
     Ok(())

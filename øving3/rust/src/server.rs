@@ -6,6 +6,7 @@ pub struct Server {
     port: u16,
     response_fn: fn(String, &mut [u8]),
     quiet: bool,
+    keepalive: bool,
 }
 
 impl Server {
@@ -14,12 +15,14 @@ impl Server {
         port: u16,
         response_fn: fn(String, &mut [u8]) -> (),
         quiet: bool,
+        keepalive: bool,
     ) -> Self {
         Self {
             address,
             port,
             response_fn,
             quiet,
+            keepalive,
         }
     }
 
@@ -37,6 +40,8 @@ impl Server {
             if !self.quiet {
                 println!("Ny klient tilkoblet: {}", socket.local_addr().unwrap())
             }
+
+            //socket.write_all("Hei, gi meg et regnestykke så skal jeg prøve så godt jeg kan\n".as_bytes()).await?;
 
             tokio::spawn(async move {
                 let mut requestbuf = [0; 1024]; // 1kB input buffer for requests
@@ -71,6 +76,8 @@ impl Server {
                         eprintln!("Problem ved skrivning til socket: {e:?}");
                         return;
                     }
+
+                    if !self.keepalive {break;}
                 }
             });
         }
