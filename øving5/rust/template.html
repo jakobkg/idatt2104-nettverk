@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verdens feteste online kompilator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h1>Jakobs Sicko Mode Online Kompilator</h1>
+    <select name="lang" id="lang-selector">
+        <option value="cpp">C++</option>
+        <option value="rust">Rust</option>
+    </select>
+    <div class="container">
+        <div class="field">
+            <label for="input">Input:</label>
+            <textarea name="input" id="input" cols="30" rows="10">
+#include <stdio>
+
+int main(int argc, char[] *argv) {
+    std::cout << "Hello, world!" << std::endl;
+    return 0;
+}</textarea>
+        </div>
+        <div class="field">
+            <label for="compiler-output">Compiler output:</label>
+            <textarea name="compiler-output" id="compiler-output" cols="30" rows="10" readonly disabled></textarea>
+        </div>
+        <div class="field">
+            <label for="program-output">Program output:</label>
+            <textarea name="program-output" id="program-output" cols="30" rows="10" readonly disabled></textarea>
+        </div>
+    </div>
+    <button>Kompiler og kjør</button>
+</body>
+
+</html>
