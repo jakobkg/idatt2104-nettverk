@@ -49,7 +49,7 @@
 
 Til denne oppgaven har jeg skrevet en enkel tjener som lytter på port 3000 etter koblinger fra klienter, og svarer på enkle regnestykker. Med Netcat som klient ser interaksjon med denne tjeneren slik ut:
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \includegraphics[width=.8\linewidth]{illustrasjoner/P3-enkel-terminal.png}
     \caption{Enkel tjener som utfører regnestykker, brukt med Netcat som klient}
@@ -57,7 +57,7 @@ Til denne oppgaven har jeg skrevet en enkel tjener som lytter på port 3000 ette
 
 Dette tjener-programmet er basert på \code{TcpListener}-klassen fra Rusts standardbibliotek\footnote{https://doc.rust-lang.org/std/net/struct.TcpListener.html}, som oppretter en \textbf{TCP}-kobling over IP. Når programmet kun kjører lokalt hos meg er det spesifikt IPv6 som brukes, som kan sees i pakkefangsten i følgende figur (adresse \texttt{::1} i stedet for \texttt{127.0.0.1}). Siden dette programmet bruker TCP foregår det et handshake (SYN, SYN/ACK, ACK) når en klient kobles til tjeneren, og et lignende handshake (FIN, FIN/ACK, ACK) når koblingen lukkes fordi enten klienten eller tjeneren avsluttes. Dette kan også sees i en pakkefangst med Wireshark:
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \includegraphics[width=.8\linewidth]{illustrasjoner/P3-enkel-capture.png}
     \caption{Pakkefangst av tjener med kun en klient}
@@ -85,7 +85,7 @@ Den relevante delen av koden der denne bufferen opprettes og sendes uten å sjek
 
 Merk spesielt linje 2 der bufferen fylles med 1024 bytes med \texttt{0x00}, og linje 8 der denne bufferen sendes av gårde gjennom nettverket uten at den forkortes fra sin fulle størrelse på 1024 bytes på noen måte. På klient-siden er Netcat flinkere til å ikke sende en drøss med unødvendig data, forskjellen kan sees veldig tydelig i pakkevisningen i Wireshark, se figur \ref{fig:pakkesammenligning} nedenfor.
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \begin{subfigure}[t]{.45\linewidth}
         \centering
@@ -163,8 +163,27 @@ Det er denne typen abstraksjoner som gjør lagmodellen for nettverk så nyttig, 
 
 \subsection{UDP-kalkulator}
 
-I denne oppgaven er kalkulator-programmet fra tidligere endret til å kommunisere over UDP i stedet for TCP. Dette fjerner en betydelig andel overhead fra kommunikasjonen og forenkler programmeringen noe, siden koblingen mellom klient og tjener ikke lenger er tilstandsfull og dermed ikke trenger handshakes, oppkobling eller nedkobling for å fungere. Data bare sendes av gårde, og programmet trenger ikke lenger ta stilling til om den blir mottatt og kvittert hos mottakeren.
+I denne oppgaven er kalkulator-programmet fra tidligere endret til å kommunisere over UDP i stedet for TCP. Dette fjerner en betydelig andel overhead fra kommunikasjonen og forenkler programmeringen noe, siden koblingen mellom klient og tjener ikke lenger er tilstandsfull og dermed ikke trenger handshakes, oppkobling eller nedkobling for å fungere. Data bare sendes av gårde, og programmet trenger ikke lenger ta stilling til om den blir mottatt og kvittert hos mottakeren. Denne gangen er det klassen \code{std::net::UdpSocket} fra Rusts standardbibliotek som brukes for å sende/motta pakker gjennom en gitt port.
 
-Nok en gang er en klasse fra Rusts standardbibliotek tatt i bruk for å behandle kommunikasjon, denne gangen \code{UdpSocket}.
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}{.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{illustrasjoner/P4-UDP-capture.png}
+        \caption[short]{Pakkefangst av UDP-trafikk, pakker fra klient i blått og pakker fra tjener i rødt}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{illustrasjoner/P4-UDP-header.png}
+        \caption[short]{UDP-header, som vist i Wireshark}
+    \end{subfigure}
+    \caption{Wireshark-visning av UDP-pakker}
+\end{figure}
+
+Som kan sees av headerne fra nettverkslaget er dette lokal trafikk (både til og fra IP ::1, som er IPv6-adressen til \texttt{localhost}), og av headerne på UDP-pakken kan det leses at tjeneren er tilknyttet port 4000 mens klienten er tilknyttet port 43669.
+
+\subsection{TLS}
+
 
 \end{document}
