@@ -83,7 +83,7 @@ Den relevante delen av koden der denne bufferen opprettes og sendes uten å sjek
     }
 \end{lstlisting}
 
-Merk spesielt linje 2 der bufferen fylles med 1024 bytes med \texttt{0x00}, og linje 8 der denne bufferen sendes av gårde gjennom nettverket uten at den forkortes fra sin fulle størrelse på 1024 bytes på noen måte. På klient-siden er Netcat flinkere til å ikke sende en drøss med unødvendig data, forskjellen kan sees veldig tydelig i pakkevisningen i Wireshark, se figur \ref{fig:pakkesammenligning} nedenfor.
+Merk spesielt linje 2, der bufferen fylles med 1024 bytes med \texttt{0x00}, og linje 8 der denne bufferen sendes av gårde gjennom nettverket uten at den forkortes fra sin fulle størrelse på 1024 bytes på noen måte. På klient-siden er Netcat flinkere til å ikke sende en drøss med unødvendig data, forskjellen kan sees veldig tydelig i pakkevisningen i Wireshark, se figur \ref{fig:pakkesammenligning} nedenfor.
 
 \begin{figure}[ht]
     \centering
@@ -185,5 +185,69 @@ Som kan sees av headerne fra nettverkslaget er dette lokal trafikk (både til og
 
 \subsection{TLS}
 
+I denne oppgaven er det to Java-programmer som er gitt på forhånd som brukes, en klient og en tjener. Disse baserer seg hhv. på Javas \code{java.net.Socket} og \code{java.net.ServerSocket}-klasser, og for å sørge for at det opprettes krypterte koblinger brukes \\ \code{javax.net.SSLSocketFactory}. Tjener-programmet venter passivt på å motta forespørsler fra klienten, og når en oppkobling er gjennomført venter tjeneren på å motta pakker.
+Når tjeneren mottar en pakke skriver den ut data-innholdet i pakken til terminalen sin, og sender den samme pakken i respons tilbake til klienten. Den relevante delen i koden til tjeneren er:
+
+\begin{lstlisting}[language=Java]
+    try (BufferedReader bufferedReader = 
+                new BufferedReader(
+                        new InputStreamReader(socket.getInputStream()))) {
+        String line;
+        while((line = bufferedReader.readLine()) != null){
+            System.out.println(line);
+            out.println(line);
+        }
+    }
+\end{lstlisting}
+
+Hoved-løkken til tjeneren er \code{while}-løkken på linje 5-8, som for hver nye tilgjengelige linje som kommer inn gjennom \code{socket.getInputStream()} skriver denne linjen til terminalen (\code{System.out.println(line)}) og sender den tilbake til klienten (\code{out.println(line)}).
+
+På klienten er det en lignende struktur, der det ventes på at brukeren skriver inn en tekst, og denne sendes av gårde til tjeneren når brukeren trykker ''Enter''. Klienten venter så på svar fra tjeneren og skriver dette til terminalen før den så ber brukeren om en ny melding.
+
+\begin{lstlisting}[language=Java]
+    Scanner scanner = new Scanner(System.in);
+    while(true){
+        System.out.println("Enter something:");
+        String inputLine = scanner.nextLine();
+        
+        out.println(inputLine);
+        System.out.println(bufferedReader.readLine());
+    }
+\end{lstlisting}
+
+Det er ikke gjort noen spesielle steg i hoved-logikken her, og likevel er trafikken som sendes mellom disse to programmene kryptert! Dette kan bekreftes ved å se på pakkefangst av trafikken i Wireshark, der pakkene kun inneholder kryptert data som i praksis er uleselig. Tekst-dataen som behandles med enkle uttrykk som \code{bufferedReader.readLine()} og \code{out.println(line)} i Java-koden er ikke å finne i trafikken vi observerer og fanger med Wireshark.
+
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}{\linewidth}
+        \includegraphics[width=\linewidth]{illustrasjoner/P4-TLS-header.png}
+        \caption{En vilkårlig datapakke fra trafikken mellom klient og tjener. Ingen lesbar data å skue!}
+    \end{subfigure}
+
+    \begin{subfigure}{\linewidth}
+        \includegraphics[width=\linewidth]{illustrasjoner/P4-TLS-terminal.png}
+        \caption{Likevel er meldingene tilgjengelige i klartekst for både klient og tjener.}
+    \end{subfigure}
+    \caption{Sammenligning av en melding i Wireshark og i terminalen til klient og tjener.}
+\end{figure}
+
+Dette er oppnådd ved bruk av \textbf{TLS} (Transport Layer Security). Om vi ser på trafikken i Wireshark og filtrerer slik at vi bare får se TLS-pakker begynner vi å få et bilde av hva som foregår under panseret. Her ser vi noen nye ting som ikke var til stede i de forrige pakkefangstene. På begynnelsen av pakkefangsten (etter TCP-handshake) ser vi nå et TLS-handshake som består av ''Client Hello'' og ''Server Hello'' (og ''Change Cipher Spec''). En veldig forenklet forklaring på dette handshaket er at klienten i ''Client Hello'' sier ''Heisann! Jeg støtter disse krypteringsalgoritmene'', og tjeneren svarer ''Den er god! Jeg støtter også krypteringsalgoritme XYZ, la oss bruke den. Her er sertifikatet mitt!''. Klienten verifiserer så dette sertifikatet, og basert på dette sertifikatet og litt tilfeldig data som utveksles genererer klienten og tjeneren krypteringsnøkler som brukes for resten av denne samtalen. Om klienten kobler seg fra tjeneren og dermed kobler til på nytt vil hele prosessen gjentas, og et nytt par krypteringsnøkler genereres! På denne måten er videre kommunikasjon sikker selv hvis en av de tidligere nøklene skulle bli stjålet.
+
+\begin{figure}[ht]
+    \begin{subfigure}{.48\linewidth}
+        \includegraphics[width=\linewidth]{illustrasjoner/P4-TLS-client-hello.png}
+        \caption{Client Hello}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{.48\linewidth}
+        \includegraphics[width=\linewidth]{illustrasjoner/P4-TLS-server-hello.png}
+        \caption{Server Hello}
+    \end{subfigure}
+    \caption{Client Hello og Server Hello fra Wireshark}
+\end{figure}
+
+I dette tilfellet ble klient og tjener enige om krypteringsalgoritme \texttt{AES\_256\_GCM\_SHA384}, og har begge kommunisert at de bruker TLS 1.2. Alt vel!
+
+Som del av handshaket må også klienten verifisere sertifikatet til tjeneren. I dette tilfellet er dette løst ved at vi på forhånd har generert et sertifikat med Javas \texttt{keytool} og gitt filen med sertifikatet som parameter til både klienten og tjeneren slik at tjeneren identifiserer seg med dette fohåndsdefinerte sertifikatet og klienten har fått beskjed om at den skal stole på dette sertifikatet. I virkeligheten er ikke dette like rett frem, og sertifikatene som brukes når man kommuniserer over TLS til vanlig stammer fra store organisasjoner som Amazon og Microsoft, og kommer forhåndsinstallert sammen med operativsystemet eller nettleseren man bruker. TLS lener seg til syvende og sist på tillit til en eller flere organisasjoner som utsteder sertifikater, dette har vist seg å fungere i praksis men hvorvidt det er en god modell er et annet spørsmål.
 
 \end{document}
