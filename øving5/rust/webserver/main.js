@@ -52,8 +52,8 @@ input_area.addEventListener('keydown', (event) => {
 })
 
 // Sett inn Hello World i input hver gang nytt språk velges
-lang_selector.addEventListener('change', (elem, _) => {
-    const selected = elem.options[elem.selectedIndex].value;
+lang_selector.addEventListener('change', (event) => {
+    const selected = event.target.options[event.target.selectedIndex].value;
     input_area.value = default_program_map.get(selected);
 });
 
