@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang='en'>
+
+<head>
+    <meta charset='UTF-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Verdens beste kompilator</title>
+    <link rel='stylesheet' href='style.css'>
+</head>
+
+<body>
+    <h1>Online Kompilator</h1>
+    <select name='lang' id='lang-selector'>
+        <option value='c'>C</option>
+        <option value='cpp' selected>C++</option>
+        <option value='rust'>Rust</option>
+    </select>
+
+    <div class='container'>
+        <div class='input-container'>
+            <label for='input'>Input:</label>
+            <textarea name='input' id='input-area'></textarea>
+        </div>
+        <div class='compiler-output-container'>
+            <label for='compiler-output'>Compiler output:</label>
+            <textarea name='compiler-output' id='compiler-output' readonly></textarea>
+        </div>
+        <div class='program-output-container'>
+            <label for='program-output'>Program output:</label>
+            <textarea name='program-output' id='program-output' readonly></textarea>
+        </div>
+        <button id='submit-button'>Kompiler og kjør</button>
+    </div>
+</body>
+<script src='https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js'></script>
+<script src='main.js'></script>
+
+</html>

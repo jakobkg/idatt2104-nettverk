@@ -1,0 +1,43 @@
+body {
+    margin: 2rem;
+}
+
+textarea {
+    resize: none;
+    font-size: large;
+    height: 100%;
+}
+
+.container {
+    display: grid;
+    gap: 1rem;
+
+    grid-template-areas:
+    'a b'
+    'a c'
+    'd x';
+}
+
+.input-container {
+    grid-area: a;
+    height: 70vh;
+}
+
+.compiler-output-container {
+    grid-area: b;
+}
+
+.program-output-container {
+    grid-area: c;
+}
+
+[class$='-container'] {
+    display:flex;
+    flex-direction: column;
+
+    flex: 1;
+}
+
+#submit-button {
+    padding: 2rem;
+}
