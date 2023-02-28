@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use base64::{engine::general_purpose, Engine as _};
 use sha::sha1;
 use sha::utils::{Digest, DigestExt};
@@ -94,17 +96,40 @@ impl WebsocketServer {
                         }
                     };
 
-                    // Behandler alt som tekst, så konverterer innholdet i bufferen til en String
-                    let message = String::from_utf8_lossy(&requestbuf[0..n - 1]);
+                    // Meldingen som er mottatt må demaskeres før den kan behandles, per RFC6455
+                    let message = &requestbuf[0..n - 1];
+
+                    // Godtar bare meldinger som inneholder tekst, så første byte må være 0x81
+                    if message[0].cmp(&0x81) != Ordering::Equal {
+                        eprintln!("Mottok melding som ikke er tekst!");
+                        eprintln!("Meldingen var: {message:?}");
+                        continue;
+                    }
+
+                    // Deler opp resten av headeren
+                    let _message_len = message[1] & 0x7f;
+                    let mask = &message[2..6];
+                    let masked_data = &message[6..];
+
+                    let mut data: Vec<u8> = Vec::new();
+
+                    for (idx, byte) in masked_data.iter().enumerate() {
+                        data.push(byte ^ mask[idx % 4]);
+                    }
+
+                    let message = String::from_utf8_lossy(&data);
 
                     if !self.quiet {
                         println!("Melding fra klient: {message}");
                     }
 
                     // Behandler meldingen og genererer svar på en eller annen måte
-                    let response = (self.response_fn)(message.into_owned());
+                    let response_msg = (self.response_fn)(message.into_owned());
+                    let response_header = [0x81, response_msg.len() as u8];
 
-                    if let Err(e) = socket.write_all(&response.as_bytes()).await {
+                    let response = [&response_header, response_msg.as_bytes()].concat();
+
+                    if let Err(e) = socket.write_all(&response).await {
                         eprintln!("Problem ved skrivning til socket: {e:?}");
                         return;
                     }
