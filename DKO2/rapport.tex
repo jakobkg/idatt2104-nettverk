@@ -10,7 +10,7 @@
 
 \usepackage{array}
 \usepackage{multirow}
-
+\usepackage{diagbox}
 \usepackage{hyperref}
 
 \usepackage{listings}
@@ -31,10 +31,10 @@
 
 \tableofcontents
 
-\section*{Websocket}
-\subsection*{Teori}
+\section{Websocket}
+\subsection{Teori}
 
-\subsubsection*{Forskjeller mellom HTTP og Websocket}
+\subsubsection{Forskjeller mellom HTTP og Websocket}
 
 Det er flere likheter og forskjeller mellom HTTP og Websocket. For begynner alle Websocket-forbindelser med et handshake over HTTP, så man kan ikke implementere Websocket uten å først ha implementert ihvertfall noen deler av HTTP.
 
@@ -42,22 +42,24 @@ Den viktigste forskjellen er at HTTP er bygd på en rigid struktur der hver inte
 
 Siden HTTP ikke tillater at tjeneren tar initiativ til sending av data til en klient må klienten selv spørre tjeneren med jevne mellomrom 'er du ferdig enda? er du ferdig enda? er du ferdig enda?'. Dette kan føre til at klienten må generere mange unødvendige forespørsler, og tjeneren må bruke tid og ressurser på å svare 'Nei jeg er ikke ferdig enda' i stedet for å kunne vie disse ressursene til å utføre jobben klienten venter på. Websocket har ikke denne samme strukturen med 'forespørsel\rightarrow respons' og kan dermed unngå den samme problemstillingen. Etter at handshake er gjennomført kan tjeneren sende klienten varsling om at ny data/tilstand er tilgjengelig uten at klienten trenger å spørre gjentatte ganger!
 
-\subsubsection*{Sikkerhetsmekanisme i Websocket}
+\subsubsection{Sikkerhetsmekanisme i Websocket}
 
 TODO
 
-\subsection*{Dokumentasjon}
-\subsubsection*{Oppkobling/handshake}
+\subsection{Dokumentasjon}
+\subsubsection{Oppkobling/handshake}
 
 Ifølge Websocket-standarden (\href{https://www.rfc-editor.org/rfc/rfc6455.html}{RFC 6455}) er en Websocket-kobling noe en HTTP-klient og HTTP-tjener blir enige om å opprette. Først sender klienten en GET-forespørsel, og inkluderer feltet \code{Upgrade: websocket} i headeren til forespørselen. Denne forespørselen skal også spesifisere hvilken versjon av Websocket som skal brukes, og inneholde en tilfeldig nøkkel\footnote{Denne tilfeldige nøkkelen, og senere maskering av meldinger fra klienter til tjenere, brukes for å unngå at proxyer og cache som kan ligge mellom klienten og tjeneren svarer 'på vegne av' tjeneren med en forhåndslagret kopi av en tidligere respons. Ved bruk av et tilfeldig element som nøkkelen i handshake og maskering av meldinger sørger man for at den faktiske dataen som sendes over nettverket er forskjellig hver gang selv om meldingen som ble sendt kanskje er den samme.} \code{Sec-Websocket-Key} på 16 byte, kodet i Base64, som tjeneren skal bruke for å verifisere svaret sitt.
 
-Tjeneren skal så svare med en HTTP-respons med status \code{101 Switching Protocols} som må inneholde header-feltene \code{Upgrade: websocket} og \code{Connection: upgrade}, og et header-felt \code{Sec-Websocket-Accept}. Dette feltet er spesielt, og verdien som skal puttes her må utledes fra den tilfeldige nøkkelen som klienten sendte i sin del av handshaket. Tjeneren skal ta nøkkelen som klienten sendte og legge til teksten \code{258EAFA5-E914-47DA-95CA-C5AB0DC85B11} på slutten av den. Denne teksten er alltid den samme, og er oppgitt i Websocket-spesifikasjonen. Om klienten sender nøkkelen \code{iMTLEqLRkU4JmXSI36YK8g==} skal tjeneren altså ende opp med \code{iMTLEqLRkU4JmXSI36YK8g==258EAFA5-E914-47DA-95CA-C5AB0DC85B11}. Deretter skal tjeneren bruke SHA1-algoritmen til å beregne hashen til denne teksten. En SHA1-hash er alltid 20 bytes lang, og hashen av eksempel-nøkkelen blir
+Tjeneren skal så svare med en HTTP-respons med status \code{101 Switching Protocols} som må inneholde header-feltene \code{Upgrade: websocket} og \code{Connection: upgrade}, og et header-felt \code{Sec-Websocket-Accept}. Dette feltet er spesielt, og verdien som skal puttes her må utledes fra den tilfeldige nøkkelen som klienten sendte i sin del av handshaket. Tjeneren skal ta denne nøkkelen og legge til \code{258EAFA5-E914-47DA-95CA-C5AB0DC85B11} på slutten av den. Denne teksten er alltid den samme, og er oppgitt i spesifikasjonen. Om klienten sender nøkkelen \code{iMTLEqLRkU4JmXSI36YK8g==} skal tjeneren altså ende opp med \code{iMTLEqLRkU4JmXSI36YK8g==258EAFA5-E914-47DA-95CA-C5AB0DC85B11}. Videre skal tjeneren bruke SHA1-algoritmen til å beregne hashen til denne teksten. En SHA1-hash er alltid 20 bytes lang, og hashen av eksempel-nøkkelen blir
 
-\code{0xEB, 0xE8, 0xD4, 0xEA, 0x62, 0xC6, 0x38, 0x47, 0x56, 0x12,}
+\begin{center}
+    \code{0xEB, 0xE8, 0xD4, 0xEA, 0x62, 0xC6, 0x38, 0x47, 0x56, 0x12,}
+    
+    \code{0xB9, 0xD3, 0x48, 0x58, 0x38, 0xE7, 0x76, 0x0E, 0x77, 0x19 }
+\end{center}
 
-\code{0xB9, 0xD3, 0x48, 0x58, 0x38, 0xE7, 0x76, 0x0E, 0x77, 0x19 }
-
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \begin{subfigure}{\linewidth}
         \centering
@@ -82,16 +84,17 @@ Tjeneren skal så svare med en HTTP-respons med status \code{101 Switching Proto
 
 Tjeneren må så kode denne hashen som Base64, og denne Base64-strengen er det som skal sendes fra tjeneren i \code{Sec-Websocket-Accept}-feltet i headeren. I dette spesifikke eksempelet blir dette feltet \code{Sec-Websocket-Accept: 6+jU6mLGOEdWErnTSFg453YOdxk=}. Skjermbildene i figur \ref{fig:ws_handshake} viser dette eksempel-handshaket i faktisk trafikk.
 
-\subsubsection*{Meldinger fra klient til tjener}
+\subsubsection{Meldinger fra klient til tjener}
 
 Når oppkoblingen er utført som beskrevet over er Websocket-forbindelsen opprettet og klar for trafikk! Både klient og tjener kan sende data over denne koblingen når de vil, med hovedforskjell at klienter alltid burde sende meldingene sine med maskering, mens en tjener ikke nødvendigvis trenger å gjøre det.
 
-Meldinger over Websocket sendes i form av ett eller flere fragment, hvor alle fragmenter følger en bestemt struktur. I denne oppgaven var det kun krav om å implementere meldinger på ett fragment med meldingslengde på opp til 125 bytes. Slike meldinger har følgende struktur:
+Meldinger over Websocket sendes i form av ett eller flere fragment, hvor alle fragmenter følger en bestemt struktur. I denne oppgaven var det kun krav om å implementere meldinger på ett fragment med meldingslengde på opp til 125 bytes. Slike fragmenter har struktur som vist i figur \ref{fig:fragmentstruktur}.
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
-    \begin{tabular}[h]{c|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|}
-        & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\
+    \begin{tabular}[h]{|c|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|}
+        \hline
+        \diagbox[width=4em]{Byte}{Bit} & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 \\
         \hline
         1 & \tt{FIN} & \multicolumn{3}{c|}{\tt{RESERVERT}} & \multicolumn{4}{c|}{\tt{MELDINGSTYPE}} \\
         \hline
@@ -105,7 +108,34 @@ Meldinger over Websocket sendes i form av ett eller flere fragment, hvor alle fr
         ... & \multicolumn{8}{c|}{\tt{MELDINGSDATA}} \\
         \hline
     \end{tabular}
-    \caption{Strukturen til en Websocket-datapakke}
+    \caption{Strukturen til et innkommende Websocket-fragment fra en klient, forenklet fra \href{https://www.rfc-editor.org/rfc/rfc6455\#section-5.2}{RFC 6455, 5.2}}
+    \label{fig:fragmentstruktur}
 \end{figure}
+
+I første byte av et fragment har vi en bit markert \code{FIN} som indikerer hvorvidt dette fragmentet er det siste i en melding. Siden det kun skal støttes korte meldinger antar jeg i implementasjonen min at \code{FIN}-biten alltid er satt til \texttt{1}. De neste tre bitene er reserverte for utvidelser av Websocket-spesifikasjonen. Siden tjeneren min ikke er ment å støtte noen slike utvidelser antar jeg at disse tre bitene har verdi \texttt{0}. De siste fire bits angir meldingstypen, og kan ha et par forskjellige verdier. Siden jeg kun ønsker å støtte tekst-meldinger kan jeg anta at disse fire bits har verdi \code{0b0001}. Totalt kan jeg altså alltid anta at første byte har verdi \code{0b10000001}/\code{0x81}.
+
+Andre byte av fragmentet starter med \code{MASK}-biten som forteller oss hvorvidt dataen i fragmentet er maskert eller ikke. Websocket-spesifikasjonen angir at alle meldinger som sendes fra en klient til en tjener skal være maskert, så tjeneren jeg har implementert antar at \code{MASK}-biten alltid er \texttt{1}. De andre syv bitene i denne byten angir meldingslengden. I en fullstendig implementasjon av Websocket-standarden kan denne lengden være angitt her i syv bits eller i de neste to eller åtte bytes. Den faktiske standarden sier at om disse syv bits har verdier \code{0b1111110} er den faktiske størrelsen angitt i de neste to bytes, og om de syv bitene er \code{0b1111111} er den faktiske størrelsen angitt i de påfølgende åtte bytes. Siden jeg bare vil støtte korte meldinger antar jeg at lengden er mellom \code{0b0000001} (1) og \code{0b1111101} (125) slik at headeren alltid har samme størrelse og layout. Dersom større meldinger skulle vært implementert ville det vært tre forskjellige layouts og størrelser headeren kunne hatt basert på om meldingslengden får plass i syv bits, to byte eller åtte byte.
+
+De neste fire bytes i fragmentet er en tilfeldig generert maskeringsnøkkel. Dataen som sendes fra en klient er maskert med denne masken, og den samme masken kan dermed brukes til å demaskere dataen igjen etter at den er mottatt. Maskeringsnøkkelen er tilfeldig generert av klienten og skal være forskjellig for hvert fragment, i motsetning til nøklene som brukes i kryptert kommunikasjon som f.eks. TLS der et par 'session keys' genereres ved oppkobling og gjenbrukes gjennom en hel sesjon.
+
+La oss se på et helt fragment, der en klient sender teksten \code{hallo} til en tjener. Første byte vet vi allerede at skal være \code{0x81} for å indikere at dette er en tekstmelding og dette fragmentet inneholder hele meldingen. Andre byte skal indikere at meldingen er maskert og har en lengde på fem bytes for de fem bokstavene, så denne blir \code{0b10000101}/\code{0x85}. Neste fire bytes skal være tilfeldig valgte, så jeg triller noen terninger og ender opp med maskeringsnøkkelen \code{0x1D, 0x43, 0x9F, 0xBF}. Meldingen \code{hallo} kan kodes til fem bytes \code{0x68, 0x61, 0x6c, 0x6c, 0x6f}. For å maskere dataen før sending tar vi første byte av dataen XOR første byte av masken, andre byte av dataen XOR andre byte av masken, osv. Når det er flere bytes i meldingen enn i nøkkelen rykker vi tilbake til starten av nøkkelen når vi når slutten av den, slik at femte byte av dataen maskeres med første byte av nøkkelen. Den maskerte dataen blir dermed 
+
+\begin{center}
+    \begin{tabular*}{.492\linewidth}[H]{cccccc}
+        & \tt0x68 & \tt0x61 & \tt0x6C & \tt0x6C & \tt0x6F \\
+        \tt XOR & \tt0x1D & \tt0x43 & \tt0x9F & \tt0xBF & \tt0x1D \\
+        \hline
+        \tt = & \tt0x75 & \tt0x22 & \tt0xF3 & \tt0xD3 & \tt0x72 \\
+        \hline
+    \end{tabular*}
+\end{center}
+
+Med det har vi hele fragmentet klart! Dataen som sendes fra klienten til tjeneren over nettverket er til sammen 
+
+\begin{center}
+    \code{0x81, 0x85, 0x1D, 0x43, 0x9F, 0xBF, 0x75, 0x22, 0xF3, 0xD3, 0x72}
+\end{center}
+
+WIRESHARK-BILDE HER
 
 \end{document}
