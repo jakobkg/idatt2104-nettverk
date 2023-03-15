@@ -1,0 +1,111 @@
+\documentclass{article}
+
+\usepackage[norsk]{babel}
+\usepackage[margin=1.5in]{geometry}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+
+\usepackage{caption}
+\usepackage{subcaption}
+
+\usepackage{array}
+\usepackage{multirow}
+
+\usepackage{hyperref}
+
+\usepackage{listings}
+\usepackage{color}
+\usepackage{xcolor}
+
+\definecolor{light-gray}{gray}{0.95}
+\newcommand{\code}[1]{\colorbox{light-gray}{\texttt{#1}}}
+
+\newlength{\bcw}
+\setlength{\bcw}{2.5em}
+
+\title{IDATT2104 - Datakom Oblig 2}
+\author{Jakob Grønhaug (jakobkg@stud.ntnu.no)}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+
+\section*{Websocket}
+\subsection*{Teori}
+
+\subsubsection*{Forskjeller mellom HTTP og Websocket}
+
+Det er flere likheter og forskjeller mellom HTTP og Websocket. For begynner alle Websocket-forbindelser med et handshake over HTTP, så man kan ikke implementere Websocket uten å først ha implementert ihvertfall noen deler av HTTP.
+
+Den viktigste forskjellen er at HTTP er bygd på en rigid struktur der hver interaksjon følger formatet \code{klient sender forespørsel\rightarrow tjener sender svar}. I HTTP er det et 1:1-forhold mellom forespørsler fra klienten og svar fra tjeneren, og det er alltid klienten som tar initiativ til en slik interaksjon. Dette har visse begrensninger, la oss for eksempel si en klient venter på at tjeneren skal bli ferdig med en større databehandlingsjobb, eller venter på en tilstandsendring av noen form. 
+
+Siden HTTP ikke tillater at tjeneren tar initiativ til sending av data til en klient må klienten selv spørre tjeneren med jevne mellomrom 'er du ferdig enda? er du ferdig enda? er du ferdig enda?'. Dette kan føre til at klienten må generere mange unødvendige forespørsler, og tjeneren må bruke tid og ressurser på å svare 'Nei jeg er ikke ferdig enda' i stedet for å kunne vie disse ressursene til å utføre jobben klienten venter på. Websocket har ikke denne samme strukturen med 'forespørsel\rightarrow respons' og kan dermed unngå den samme problemstillingen. Etter at handshake er gjennomført kan tjeneren sende klienten varsling om at ny data/tilstand er tilgjengelig uten at klienten trenger å spørre gjentatte ganger!
+
+\subsubsection*{Sikkerhetsmekanisme i Websocket}
+
+TODO
+
+\subsection*{Dokumentasjon}
+\subsubsection*{Oppkobling/handshake}
+
+Ifølge Websocket-standarden (\href{https://www.rfc-editor.org/rfc/rfc6455.html}{RFC 6455}) er en Websocket-kobling noe en HTTP-klient og HTTP-tjener blir enige om å opprette. Først sender klienten en GET-forespørsel, og inkluderer feltet \code{Upgrade: websocket} i headeren til forespørselen. Denne forespørselen skal også spesifisere hvilken versjon av Websocket som skal brukes, og inneholde en tilfeldig nøkkel\footnote{Denne tilfeldige nøkkelen, og senere maskering av meldinger fra klienter til tjenere, brukes for å unngå at proxyer og cache som kan ligge mellom klienten og tjeneren svarer 'på vegne av' tjeneren med en forhåndslagret kopi av en tidligere respons. Ved bruk av et tilfeldig element som nøkkelen i handshake og maskering av meldinger sørger man for at den faktiske dataen som sendes over nettverket er forskjellig hver gang selv om meldingen som ble sendt kanskje er den samme.} \code{Sec-Websocket-Key} på 16 byte, kodet i Base64, som tjeneren skal bruke for å verifisere svaret sitt.
+
+Tjeneren skal så svare med en HTTP-respons med status \code{101 Switching Protocols} som må inneholde header-feltene \code{Upgrade: websocket} og \code{Connection: upgrade}, og et header-felt \code{Sec-Websocket-Accept}. Dette feltet er spesielt, og verdien som skal puttes her må utledes fra den tilfeldige nøkkelen som klienten sendte i sin del av handshaket. Tjeneren skal ta nøkkelen som klienten sendte og legge til teksten \code{258EAFA5-E914-47DA-95CA-C5AB0DC85B11} på slutten av den. Denne teksten er alltid den samme, og er oppgitt i Websocket-spesifikasjonen. Om klienten sender nøkkelen \code{iMTLEqLRkU4JmXSI36YK8g==} skal tjeneren altså ende opp med \code{iMTLEqLRkU4JmXSI36YK8g==258EAFA5-E914-47DA-95CA-C5AB0DC85B11}. Deretter skal tjeneren bruke SHA1-algoritmen til å beregne hashen til denne teksten. En SHA1-hash er alltid 20 bytes lang, og hashen av eksempel-nøkkelen blir
+
+\code{0xEB, 0xE8, 0xD4, 0xEA, 0x62, 0xC6, 0x38, 0x47, 0x56, 0x12,}
+
+\code{0xB9, 0xD3, 0x48, 0x58, 0x38, 0xE7, 0x76, 0x0E, 0x77, 0x19 }
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}{\linewidth}
+        \centering
+        \includegraphics*[width=\linewidth]{illustrasjoner/WS_handshake.png}
+        \caption{Websocket-handshake slik det fremstår i pakkelisten i Wireshark}
+    \end{subfigure}
+
+    \begin{subfigure}{.48\linewidth}
+        \centering
+        \includegraphics*[width=\linewidth]{illustrasjoner/WS_handshake_klient.png}
+        \caption{Klientens del av handshake}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{.48\linewidth}
+        \centering
+        \includegraphics*[width=\linewidth]{illustrasjoner/WS_handshake_tjener.png}
+        \caption{Tjenerens del av handshake}
+    \end{subfigure}
+    \caption{Skjermbilder av Websocket-handshaket i Wireshark}
+    \label{fig:ws_handshake}
+\end{figure}
+
+Tjeneren må så kode denne hashen som Base64, og denne Base64-strengen er det som skal sendes fra tjeneren i \code{Sec-Websocket-Accept}-feltet i headeren. I dette spesifikke eksempelet blir dette feltet \code{Sec-Websocket-Accept: 6+jU6mLGOEdWErnTSFg453YOdxk=}. Skjermbildene i figur \ref{fig:ws_handshake} viser dette eksempel-handshaket i faktisk trafikk.
+
+\subsubsection*{Meldinger fra klient til tjener}
+
+Når oppkoblingen er utført som beskrevet over er Websocket-forbindelsen opprettet og klar for trafikk! Både klient og tjener kan sende data over denne koblingen når de vil, med hovedforskjell at klienter alltid burde sende meldingene sine med maskering, mens en tjener ikke nødvendigvis trenger å gjøre det.
+
+Meldinger over Websocket sendes i form av ett eller flere fragment, hvor alle fragmenter følger en bestemt struktur. I denne oppgaven var det kun krav om å implementere meldinger på ett fragment med meldingslengde på opp til 125 bytes. Slike meldinger har følgende struktur:
+
+\begin{figure}[h]
+    \centering
+    \begin{tabular}[h]{c|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|m{\bcw}|}
+        & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\
+        \hline
+        1 & \tt{FIN} & \multicolumn{3}{c|}{\tt{RESERVERT}} & \multicolumn{4}{c|}{\tt{MELDINGSTYPE}} \\
+        \hline
+        2 & \tt{MASK} & \multicolumn{7}{c|}{\tt{MELDINGSLENGDE}} \\
+        \hline
+        3 & \multicolumn{8}{c|}{\multirow{4}{*}{\tt{MASKERINGSNØKKEL}}} \\
+        4 & \multicolumn{8}{c|}{\multirow{4}{*}{}} \\
+        5 & \multicolumn{8}{c|}{\multirow{4}{*}{}} \\
+        6 & \multicolumn{8}{c|}{\multirow{4}{*}{}} \\
+        \hline 
+        ... & \multicolumn{8}{c|}{\tt{MELDINGSDATA}} \\
+        \hline
+    \end{tabular}
+    \caption{Strukturen til en Websocket-datapakke}
+\end{figure}
+
+\end{document}

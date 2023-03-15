@@ -155,7 +155,7 @@ impl WebsocketServer {
                     Ok(header) => header,
                     Err(_) => {
                         eprintln!("Mottatt melding kunne ikke konverteres til UTF8-string");
-                        socket.write(b"HTTP/1.0 400 Bad Request\n").await.unwrap();
+                        socket.write(b"HTTP/1.0 400 Bad Request\n\n").await.unwrap();
                         return;
                     }
                 };
@@ -167,7 +167,7 @@ impl WebsocketServer {
                 {
                     // Svar med 400 Bad Request og lukk koblingen om ikke
                     eprintln!("Mottok ingen key, lukker koblingen");
-                    socket.write(b"HTTP/1.0 400 Bad Request\n").await.unwrap();
+                    socket.write(b"HTTP/1.0 400 Bad Request\n\n").await.unwrap();
                     return;
                 };
 
@@ -178,7 +178,7 @@ impl WebsocketServer {
 
                 drop(header);
 
-                // Nøkkelen som skal svares med er base64(sha1(key + ))
+                // Nøkkelen som skal svares med er base64(sha1(key + MAGIC_GUID))
                 let response_key = general_purpose::STANDARD.encode(
                     sha1::Sha1::default()
                         .digest((key + WebsocketServer::MAGIC_GUID).as_bytes())
