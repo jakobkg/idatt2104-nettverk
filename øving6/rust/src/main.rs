@@ -8,7 +8,7 @@ fn echo(x: String) -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let server = server::WebsocketServer::new("127.0.0.1".to_string(), 1312, echo, false);
+    let server = server::WebsocketServer::new("10.22.13.226".to_string(), 1312, echo, false);
     server.start().await?;
     Ok(())
 }

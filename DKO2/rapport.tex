@@ -44,7 +44,9 @@ Siden HTTP ikke tillater at tjeneren tar initiativ til sending av data til en kl
 
 \subsubsection{Sikkerhetsmekanisme i Websocket}
 
-TODO
+Websocket er i seg selv ikke en sikkerhetsorientert protokoll. Enkelte meldinger er maskerte, men masken som brukes for å demaskere meldingene sendes i headeren til de samme meldingene, så dette må ikke forveksles med faktisk kryptering. Websocket bruker \texttt{Origin}-headeren ved oppkobling på samme måte som HTTP for å gi tjenere muligheten til å avvise koblinger fra ukjente klienter, men dette er kun nyttig for koblinger som opprettes gjennom nettlesere. Andre klienter kan sende hva de vil i dette header-feltet, så det burde ikke regnes som en faktisk sikkerhet.
+
+En sikrest mulig Websocket-kobling oppnås ved å initiere den over HTTPS heller enn HTTP, i dette tilfellet vil Websocket-koblingen arve TLS-koblingen fra HTTPS og holde trafikken kryptert.
 
 \subsection{Dokumentasjon}
 \subsubsection{Oppkobling/handshake}
@@ -86,7 +88,24 @@ Tjeneren må så kode denne hashen som Base64, og denne Base64-strengen er det s
 
 \subsubsection{Meldinger fra klient til tjener}
 
-Når oppkoblingen er utført som beskrevet over er Websocket-forbindelsen opprettet og klar for trafikk! Både klient og tjener kan sende data over denne koblingen når de vil, med hovedforskjell at klienter alltid burde sende meldingene sine med maskering, mens en tjener ikke nødvendigvis trenger å gjøre det.
+Når oppkoblingen er utført som beskrevet over er Websocket-forbindelsen opprettet og klar for trafikk! Både klient og tjener kan sende data over denne koblingen når de vil, med hovedforskjell at klienter alltid skal sende meldingene sine med maskering, mens en tjener ikke trenger å gjøre det.
+
+Denne maskeringen er ment å hindre problemer som kan oppstå dersom en hjelpsom proxy eller cache mellom klienten og tjeneren svarer på vegne av tjeneren i et forsøk på å korte ned svartiden. I mange tilfeller er dette ønskelig på internett, dersom en klient sender en forespørsel om samme bilde to ganger med kort mellomrom er det ikke urimelig å anta at bildet er det samme ved andre forespørsel som ved første, og dermed kan en proxy sende en mellomlagret kopi av bildet i stedet for å sende forespørselen helt til tjeneren.
+Ved websocket-trafikk er det ikke gitt at samme forespørsel burde ha samme svar, la oss for eksempel se for oss et enkelt database-aktig system med en websocket-klient. En interaksjon med denne databasen kan se slik ut:
+
+\begin{quote}
+\tt
+    1) Klient: USE TABLE butikker; \\
+    2) Tjener: OK \\
+    3) Klient: SELECT *; \\
+    4) Tjener: \{JSON-data om butikker\} \\
+    5) Klient: USE TABLE ansatte; \\
+    6) Tjener: OK \\
+    7) Klient: SELECT *; \\
+    8) Tjener: \{JSON-data om ansatte\} \\
+\end{quote}
+
+Dersom denne interaksjonen gikk via en slik hjelpsom proxy kunne denne ha mellomlagret responsen med butikk-data i linjer 3-4, slik at når klienten spør om ansatt-data i linje 7 kommer svaret med butikk-data igjen fra proxyen siden forespørselen som er identisk. Ikke bra! For å unngå at dette skal kunne skje må det tilføres et element av tilfeldighet slik at de to forespørslene på linje 3 og linje 6 ser forskjellige ut for mellomstopp på nettverket selv om den faktiske meldingen er den samme. Dette løser Websocket-spesifikasjonen ved å kreve at alle meldinger fra en klient er maskert med en tilfeldig generert maske, mer om dette senere.
 
 Meldinger over Websocket sendes i form av ett eller flere fragment, hvor alle fragmenter følger en bestemt struktur. I denne oppgaven var det kun krav om å implementere meldinger på ett fragment med meldingslengde på opp til 125 bytes. Slike fragmenter har struktur som vist i figur \ref{fig:fragmentstruktur}.
 
@@ -108,7 +127,7 @@ Meldinger over Websocket sendes i form av ett eller flere fragment, hvor alle fr
         ... & \multicolumn{8}{c|}{\tt{MELDINGSDATA}} \\
         \hline
     \end{tabular}
-    \caption{Strukturen til et innkommende Websocket-fragment fra en klient, forenklet fra \href{https://www.rfc-editor.org/rfc/rfc6455\#section-5.2}{RFC 6455, 5.2}}
+    \caption{Strukturen til et Websocket-fragment fra en klient til en tjener, forenklet fra \href{https://www.rfc-editor.org/rfc/rfc6455\#section-5.2}{RFC 6455, 5.2}}
     \label{fig:fragmentstruktur}
 \end{figure}
 
@@ -136,6 +155,71 @@ Med det har vi hele fragmentet klart! Dataen som sendes fra klienten til tjenere
     \code{0x81, 0x85, 0x1D, 0x43, 0x9F, 0xBF, 0x75, 0x22, 0xF3, 0xD3, 0x72}
 \end{center}
 
-WIRESHARK-BILDE HER
+\subsubsection{Meldinger fra tjener til klient}
+
+Meldinger fra tjenere til klienter er heldigvis mye greiere. All makseringen vi har måttet drive med så langt er kun for å unngå problematikk som kan oppstå dersom en hjelpsom proxy mellomlagrer et svar fra tjeneren. Denne problematikken finnes ikke den andre veien, og dermed trenger ikke meldingene fra en tjener til en klient å maskeres på samme måte.
+
+\begin{figure}[ht]
+    \centering
+    \begin{tabular}[h]{|c|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|w{c}{\bcw}|}
+        \hline
+        \diagbox[width=4em]{Byte}{Bit} & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 \\
+        \hline
+        1 & \tt{FIN} & \multicolumn{3}{c|}{\tt{RESERVERT}} & \multicolumn{4}{c|}{\tt{MELDINGSTYPE}} \\
+        \hline
+        2 & \tt{MASK} & \multicolumn{7}{c|}{\tt{MELDINGSLENGDE}} \\
+        \hline 
+        ... & \multicolumn{8}{c|}{\tt{MELDINGSDATA}} \\
+        \hline
+    \end{tabular}
+    \caption{Strukturen til et Websocket-fragment fra en tjener til en klient, forenklet fra \href{https://www.rfc-editor.org/rfc/rfc6455\#section-5.2}{RFC 6455, 5.2}}
+    \label{fig:fragmentstruktur_tjener}
+\end{figure}
+
+Akkurat som for klienter må også tjeneren sette opp første byte med en bit som markerer at dette fragmentet er det siste i meldingen sin, tre reserverte bits og fire bits som markerer meldingstype. For korte meldinger med tekst-innhold vil denne alltid være \code{0b10000001} eller \code{0x81}, akkurat som vi så tidligere.
+
+Andre byte inneholder maske-biten, som alltid vil være 0 siden meldinger fra tjenere ikke trenger maskeres. Som tidligere inneholder de neste syv bits meldingslengden, gitt at meldingen ikke er lengre enn 125 bytes lang. Om en tjener sender meldingen \code{hallo} til en klient vil lengden være 5, så denne byten blir \code{0b00000101} eller \code{0x05}.
+
+Det er alt av headere! Ingen maskeringsnøkkel eller andre finurlige saker. Dersom en tjener skal sende melding med teksten \code{hallo} til en klient vil meldingsdataen kun være teksten uten noen ekstra koding. Som vi så tidligere er denne teksten representert som bytes som \code{0x68, 0x61, 0x6c, 0x6c, 0x6f}. Disse bytene setter vi rett inn i meldingen, så den totale meldingen blir:
+
+\begin{center}
+    \code{0x81, 0x05, 0x68, 0x61, 0x6c, 0x6c, 0x6f}
+\end{center}
+
+De to meldingene der klient og tjener sier \code{hallo} ser som forventet ut i Wireshark:
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}{.48\linewidth}
+        \includegraphics[width=\linewidth]{illustrasjoner/WS_fra_klient.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{.48\linewidth}
+        \includegraphics[width=\linewidth]{illustrasjoner/WS_fra_tjener.png}
+    \end{subfigure}
+\end{figure}
+
+\section{SSH}
+
+\subsection{Etablering av sikker forbindelse}
+
+SSH bruker TCP på transportlaget, etter at TCP-handshake er utført og oppkobling er gjort har SSH sitt eget handshake. Klient og tjener kommuniserer først hvilke versjoner av SSH de støtter, og deretter hvilke krypteringsalgoritmer de tilbyr for å velge sterkest mulig kryptering. Klienten og tjeneren oppretter så hvert sitt nøkkelpar med offentlige og private nøkler, og utveksler offentlige nøkler. Nå som klienten og tjeneren har hverandres offentlige nøkler kan klienten kryptere kommunikasjon med tjenerens offentlige nøkkel, og dermed sikre at kun tjeneren kan dekryptere kommunikasjonen ved å bruke sin private nøkkel (og omvendt). Denne utvekslingen av nøkler kan sees i pakkefangsten i Wireshark i figur \ref*{fig:SSH_nøkler}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{illustrasjoner/SSH_nøkkelbytte.png}
+    \caption{Handshake og nøkkelutveksling mellom klient og tjener med SSH}
+    \label{fig:SSH_nøkler}
+\end{figure}
+
+\subsection{Autentisering av brukeren}
+
+Nå som klienten og tjeneren har etablert en sikker kobling er neste steg at brukeren må bekrefte at de faktisk skal ha tilgang til tjeneren de prøver å koble seg til. Dette foregår stort sett på to måter, enten ved passord-autentisering eller ved nøkkel-autentisering.
+
+Ved passord-autentisering spør tjeneren enkelt og greit om passordet til brukerkontoen, som brukeren skriver inn og sender tilbake for å autentisere seg og starte sesjonen sin. Det er vanskelig å hindre en ondsinnet aktør fra å spamme en tjener med påloggingsforsøk med forskjellige passord, så dette anses som en sårbar autentiseringsform og anbefales generelt ikke.
+
+Nøkkel-autentisering fungerer ved at brukeren genererer et nøkkelpar med en privat og en offentlig nøkkel, og på forhånd registrerer sin offentlige nøkkel på tjeneren de ønsker å logge inn på. Når brukeren logger på tjeneren med SSH med nøkkel-autentisering genererer tjeneren et tilfeldig tall, krypterer det med brukerens offentlige nøkkel og sender det til brukerens klient. Dersom brukeren er den de utgir seg for å være vil de fint kunne dekryptere dette tilfeldige tallet med sin private nøkkel for så å generere en hash av dette og sende tilbake til tjeneren. Så lenge klienten og tjeneren kommer frem til samme hash kan tjeneren stole på at brukeren er den de utgir seg for å være, og slippes inn.
+
+All denne trafikken er kryptert og vil ikke kunne sees i Wireshark.
 
 \end{document}
