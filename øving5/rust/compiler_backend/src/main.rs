@@ -14,25 +14,19 @@ enum Language {
 
 impl Language {
     fn extension(&self) -> String {
-        format!(
-            "{}",
-            match self {
+        (match self {
                 Language::rust => "rs",
                 Language::c => "c",
                 Language::cpp => "cpp",
-            }
-        )
+            }).to_string()
     }
 
     fn compiler(&self) -> String {
-        format!(
-            "{}",
-            match self {
+        (match self {
                 Language::rust => "rustc",
                 Language::c => "gcc",
                 Language::cpp => "g++",
-            }
-        )
+            }).to_string()
     }
 }
 
@@ -53,9 +47,9 @@ async fn compile(request: Json<Program>) -> Result<Json<CompilerResult>, actix_w
     let uuid = Uuid::new_v4();
     println!("Mottatt forespørsel: {} av type {:?}", uuid, request.lang);
 
-    let dirname = format!("tmp/{}", uuid.to_string());
+    let dirname = format!("tmp/{}", uuid);
     let filename = format!("src.{}", request.lang.extension());
-    let fullpath = format!("{}/{}", dirname.clone(), filename.clone());
+    let fullpath = format!("{}/{}", dirname, filename);
 
     // Forsøk å opprette en mappe med navn fra UUID, svar med HTTP 500 om dette feiler
     if let Err(_) = Command::new("mkdir")
@@ -99,7 +93,7 @@ async fn compile(request: Json<Program>) -> Result<Json<CompilerResult>, actix_w
     // Forsøk å kompilere programkoden, returner vanlig resultat om kompileringen kan starte men feiler pga kodefeil
     // Returnerer HHTP 500 om kompilator-prosessen ikke kunne startes
     let res = match Command::new(request.lang.compiler())
-        .arg(fullpath.clone())
+        .arg(fullpath)
         .arg("-o")
         .arg(format!("{dirname}/out"))
         .output()
@@ -146,7 +140,7 @@ async fn compile(request: Json<Program>) -> Result<Json<CompilerResult>, actix_w
         program_output = "Did not compile".to_string();
     }
 
-    let _ = Command::new("rm").arg("-r").arg(dirname.clone()).spawn();
+    let _ = Command::new("rm").arg("-r").arg(dirname).spawn();
 
     Ok(Json(CompilerResult {
         compiler_output,
